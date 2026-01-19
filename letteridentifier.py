@@ -1,5 +1,3 @@
-
-
 import cv2
 import pytesseract
 
@@ -7,14 +5,21 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 
 cap = cv2.VideoCapture(0)
-
+size = 200
+x = 0
+direzione = 1 #quando è uguale a 1 va verso destra else = -1 va a sinistra
+velocita = 3
 while True:
     ret, frame = cap.read()
+    h, w, _ = frame.shape
+    x+= direzione*velocita
+    if x+size >= w or x<=0: direzione*=-1
+    roi = frame[100:100 + size, x:x+size]
     if not ret:
         break
 
 
-    roi = frame[100:300, 100:300]
+
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
 
@@ -28,7 +33,7 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
 
-    cv2.rectangle(frame, (100, 100), (300, 300), (255, 0, 0), 2)
+    cv2.rectangle(frame, (x, 100), (x+size, 100+size), (100, 0, 255), 2)
     cv2.imshow("Webcam", frame)
 
 
