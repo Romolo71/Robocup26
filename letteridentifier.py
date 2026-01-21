@@ -1,3 +1,4 @@
+
 import cv2
 import pytesseract
 
@@ -8,7 +9,7 @@ cap = cv2.VideoCapture(0)
 size = 200
 x = 0
 direzione = 1 #quando è uguale a 1 va verso destra else = -1 va a sinistra
-velocita = 3
+velocita = 7
 while True:
     ret, frame = cap.read()
     h, w, _ = frame.shape
@@ -33,7 +34,7 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
 
-    cv2.rectangle(frame, (x, 100), (x+size, 100+size), (100, 0, 255), 2)
+    cv2.rectangle(frame, (x, 100), (x+size, 100+size), (127, 0, 255), 2)
     cv2.imshow("Webcam", frame)
 
 
