@@ -82,7 +82,8 @@ if (isset($_GET['logout'])) {
                     { command: "AVANTI",   api: "move-fwd" },
                     { command: "INDIETRO", api: "move-bkw" },
                     { command: "DESTRA",   api: "turn-cw"  },
-                    { command: "SINISTRA", api: "turn-ccw" }
+                    { command: "SINISTRA", api: "turn-ccw" },
+                    { command: "STOP",     api: "stop"     }
                 ]
                 let requestedApiEndpoint = "";
                 listaComandi.forEach((el, i) => {
@@ -95,8 +96,6 @@ if (isset($_GET['logout'])) {
                 fetch(`http://${ESP_IP}/${requestedApiEndpoint}`)
                     .then(response => {
                         console.log(response);
-                        
-                        
                     })
                     .catch(err => {
                         status.innerText = "Errore: ESP32 non raggiungibile";

@@ -95,6 +95,12 @@ void setup() {
     // turn-cw
     move(3);
   });
+  server.on("/stop", []() {
+    server.send(200, "application/json", "{'text':'Command Confirmed: Stop', 'command':'stop'}");
+    Serial.println("HTTP LOG: stop");
+    // stop
+    move(4);
+  });
 
   server.begin();
   Serial.println("HTTP server attivo");
@@ -123,6 +129,12 @@ void move(int direction) {
       break;
     case 3: // sinistra
       
+      break;
+    case 4: // stop
+      ledcWrite(ch1, 0);
+      ledcWrite(ch2, 0);
+      ledcWrite(ch3, 0);
+      ledcWrite(ch4, 0);
       break;
     default:
       break;
