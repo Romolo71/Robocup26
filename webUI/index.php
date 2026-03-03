@@ -29,6 +29,9 @@ if (isset($_GET['logout'])) {
             <?php if(isset($_SESSION['authorized'])): ?>
                 .login-box { display: none; }
                 .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+                .config-panel { margin-bottom: 20px; padding: 15px; background: #334155; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
+                .config-panel input { padding: 8px; border-radius: 5px; border: 1px solid var(--accent-color); background: #1e293b; color: white; width: 200px; }
+                .config-panel button { padding: 8px 15px; }
             <?php endif; ?>
         </style>
     </head>
@@ -47,6 +50,10 @@ if (isset($_GET['logout'])) {
                 </div>
             <?php else: ?>
                 <h1>Robot Command Center</h1>
+                <div class="config-panel">
+                    <input type="text" id="ipInput" placeholder="IP ESP32 (es. 192.168.1.10)">
+                    <button onclick="updateIP()">Salva IP</button>
+                </div>
                 <div class="dashboard">
                     <div>
                         <h3>Movimento</h3>
@@ -72,7 +79,24 @@ if (isset($_GET['logout'])) {
         </div>
 
         <script>
-            const ESP_IP = "172.20.10.5"; // Sostituisci con l'IP che apparirà sulla seriale dell'ESP32
+            let ESP_IP = localStorage.getItem('esp_ip') || "172.20.10.5";
+
+            // Imposta l'IP iniziale nell'input
+            document.addEventListener("DOMContentLoaded", () => {
+                const ipInput = document.getElementById('ipInput');
+                if (ipInput) {
+                    ipInput.value = ESP_IP;
+                }
+            });
+
+            function updateIP() {
+                const newIP = document.getElementById('ipInput').value;
+                if (newIP) {
+                    ESP_IP = newIP;
+                    localStorage.setItem('esp_ip', ESP_IP);
+                    document.getElementById('statusField').innerText = "Stato: IP aggiornato a " + ESP_IP;
+                }
+            }
 
             function sendCommand(dir) {
                 const status = document.getElementById('statusField');
