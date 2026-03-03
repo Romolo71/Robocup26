@@ -1,9 +1,10 @@
 #include <WiFi.h>
 #include <WebServer.h>
 
-// Sostituisci con i dati della tua rete
-const char* ssid = "iPhone di Riccardo";
-const char* password = "Verstappen104";
+// Sostituisci con i dati della tua rete (dal file .env se disponibile)
+#include "wifi_secrets.h"
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PSWD;
 
 // Definizione PIN Motore A
 const int pin1 = 2; 
@@ -13,10 +14,17 @@ const int pin2 = 4;
 const int pin3 = 16; 
 const int pin4 = 17;
 
-const int ch1=0;
-const int ch2=1;
-const int ch3=2;
-const int ch4=3;
+// version 2 of the motor driver
+// const int ch1=0;
+// const int ch2=1;
+// const int ch3=2;
+// const int ch4=3;
+
+// version 3 of the motor driver
+const int ch1=pin1;
+const int ch2=pin2;
+const int ch3=pin3;
+const int ch4=pin4;
 
 const int freq=5000;
 const int resolution=8;
@@ -27,23 +35,32 @@ WebServer server(80);
 // Pin del LED (GPIO 2 è solitamente il LED integrato)
 const int ledPin = 2;
 
-// Gestione della pagina principale
-
+// Detailed PWM Speed values for each direction
+int fwdA = 255, fwdB = 255;
+int bkwA = 255, bkwB = 255;
+int cwA = 200,  cwB = 200;
+int ccwA = 200, ccwB = 200;
 
 void setup() {
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
 
-  ledcSetup(ch1,freq,resolution);
-  ledcSetup(ch2,freq,resolution);
-  ledcSetup(ch3,freq,resolution);
-  ledcSetup(ch4,freq,resolution);
+  // If you use version 2 of the motor driver, uncomment the following lines:
+  // ledcSetup(ch1,freq,resolution);
+  // ledcSetup(ch2,freq,resolution);
+  // ledcSetup(ch3,freq,resolution);
+  // ledcSetup(ch4,freq,resolution);
+  // ledcAttachPin(pin1,ch1);
+  // ledcAttachPin(pin2,ch2);
+  // ledcAttachPin(pin3,ch3);
+  // ledcAttachPin(pin4,ch4);
 
-  ledcAttachPin(pin1,ch1);
-  ledcAttachPin(pin2,ch2);
-  ledcAttachPin(pin3,ch3);
-  ledcAttachPin(pin4,ch4);
+  // If you use version 3 of the motor driver, uncomment the following lines:
+  ledcAttach(pin1,freq,resolution);
+  ledcAttach(pin2,freq,resolution);
+  ledcAttach(pin3,freq,resolution);
+  ledcAttach(pin4,freq,resolution);
 
   // Connessione Wi-Fi
   WiFi.begin(ssid, password);
@@ -102,6 +119,21 @@ void setup() {
     move(4);
   });
 
+  server.on("/update", []() {
+    if (server.hasArg("fwdA")) fwdA = server.arg("fwdA").toInt();
+    if (server.hasArg("fwdB")) fwdB = server.arg("fwdB").toInt();
+    if (server.hasArg("bkwA")) bkwA = server.arg("bkwA").toInt();
+    if (server.hasArg("bkwB")) bkwB = server.arg("bkwB").toInt();
+    if (server.hasArg("cwA"))  cwA  = server.arg("cwA").toInt();
+    if (server.hasArg("cwB"))  cwB  = server.arg("cwB").toInt();
+    if (server.hasArg("ccwA")) ccwA = server.arg("ccwA").toInt();
+    if (server.hasArg("ccwB")) ccwB = server.arg("ccwB").toInt();
+    
+    String response = "{\"status\":\"ok\", \"fwd\":[" + String(fwdA) + "," + String(fwdB) + "], \"bkw\":[" + String(bkwA) + "," + String(bkwB) + "]}";
+    server.send(200, "application/json", response);
+    Serial.println("HTTP LOG: Calibration updated");
+  });
+
   server.begin();
   Serial.println("HTTP server attivo");
 }
@@ -114,21 +146,27 @@ void move(int direction) {
   switch (direction) {
     case 0: // avanti
       ledcWrite(ch1, 0);
-      ledcWrite(ch2, 255);
+      ledcWrite(ch2, fwdA);
       ledcWrite(ch3, 0);
-      ledcWrite(ch4, 255);
+      ledcWrite(ch4, fwdB);
       break;
     case 1: // indietro
-      ledcWrite(ch1, 255);
+      ledcWrite(ch1, bkwA);
       ledcWrite(ch2, 0);
-      ledcWrite(ch3, 255);
+      ledcWrite(ch3, bkwB);
       ledcWrite(ch4, 0);
       break;
-    case 2: // destra
-      
+    case 2: // destra (Giro orario)
+      ledcWrite(ch1, cwA);
+      ledcWrite(ch2, 0);
+      ledcWrite(ch3, 0);
+      ledcWrite(ch4, cwB);
       break;
-    case 3: // sinistra
-      
+    case 3: // sinistra (Giro anti-orario)
+      ledcWrite(ch1, 0);
+      ledcWrite(ch2, ccwA);
+      ledcWrite(ch3, ccwB);
+      ledcWrite(ch4, 0);
       break;
     case 4: // stop
       ledcWrite(ch1, 0);

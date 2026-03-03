@@ -29,9 +29,20 @@ if (isset($_GET['logout'])) {
             <?php if(isset($_SESSION['authorized'])): ?>
                 .login-box { display: none; }
                 .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-                .config-panel { margin-bottom: 20px; padding: 15px; background: #334155; border-radius: 10px; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
-                .config-panel input { padding: 8px; border-radius: 5px; border: 1px solid var(--accent-color); background: #1e293b; color: white; width: 200px; }
-                .config-panel button { padding: 8px 15px; }
+                .config-panel { margin-bottom: 20px; padding: 15px; background: #334155; border-radius: 10px; display: flex; flex-direction: column; gap: 15px; align-items: stretch; border: 1px solid #475569; }
+                .config-panel .input-group { display: flex; flex-direction: column; gap: 5px; }
+                .config-panel .ip-row { display: flex; gap: 15px; align-items: flex-end; justify-content: center; padding-bottom: 10px; border-bottom: 1px solid #475569; }
+                .config-panel label { font-size: 0.8rem; color: #94a3b8; font-weight: bold; }
+                .config-panel input { padding: 8px; border-radius: 5px; border: 1px solid var(--accent-color); background: #1e293b; color: white; width: 120px; }
+                .config-panel button { padding: 8px 20px; background: var(--accent-color); color: white; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s; }
+                .config-panel button:hover { background: #3b82f6; }
+                
+                details.advanced { background: #1e293b; padding: 10px; border-radius: 8px; margin-top: 5px; }
+                details.advanced summary { cursor: pointer; color: #3b82f6; font-size: 0.9rem; font-weight: bold; margin-bottom: 10px; list-style: none; display: flex; align-items: center; justify-content: center; }
+                details.advanced summary::before { content: "⚙️ "; }
+                .calibration-grid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 10px; align-items: center; text-align: left; }
+                .direction-label { color: white; font-size: 0.85rem; padding-right: 10px; }
+                .btn-update-calib { margin-top: 15px; width: 100%; }
             <?php endif; ?>
         </style>
     </head>
@@ -51,8 +62,37 @@ if (isset($_GET['logout'])) {
             <?php else: ?>
                 <h1>Robot Command Center</h1>
                 <div class="config-panel">
-                    <input type="text" id="ipInput" placeholder="IP ESP32 (es. 192.168.1.10)">
-                    <button onclick="updateIP()">Salva IP</button>
+                    <div class="ip-row">
+                        <div class="input-group">
+                            <label for="ipInput">Indirizzo IP ESP32</label>
+                            <input type="text" id="ipInput" placeholder="es. 192.168.1.10" style="width: 200px;">
+                        </div>
+                        <button onclick="updateIP()">Salva IP</button>
+                    </div>
+
+                    <details class="advanced">
+                        <summary>Calibrazione Avanzata (Motori/Direzioni)</summary>
+                        <div class="calibration-grid">
+                            <div></div><label>Motore A</label><label>Motore B</label>
+                            
+                            <span class="direction-label">Avanti:</span>
+                            <input type="number" id="fwdA" value="255">
+                            <input type="number" id="fwdB" value="255">
+                            
+                            <span class="direction-label">Indietro:</span>
+                            <input type="number" id="bkwA" value="255">
+                            <input type="number" id="bkwB" value="255">
+                            
+                            <span class="direction-label">Destra:</span>
+                            <input type="number" id="cwA" value="200">
+                            <input type="number" id="cwB" value="200">
+                            
+                            <span class="direction-label">Sinistra:</span>
+                            <input type="number" id="ccwA" value="200">
+                            <input type="number" id="ccwB" value="200">
+                        </div>
+                        <button class="btn-update-calib" onclick="updateSettings()">Salva Calibrazione</button>
+                    </details>
                 </div>
                 <div class="dashboard">
                     <div>
@@ -98,6 +138,32 @@ if (isset($_GET['logout'])) {
                 }
             }
 
+            function updateSettings() {
+                const status = document.getElementById('statusField');
+                status.innerText = "Stato: Invio calibrazione...";
+
+                const params = new URLSearchParams({
+                    fwdA: document.getElementById('fwdA').value,
+                    fwdB: document.getElementById('fwdB').value,
+                    bkwA: document.getElementById('bkwA').value,
+                    bkwB: document.getElementById('bkwB').value,
+                    cwA:  document.getElementById('cwA').value,
+                    cwB:  document.getElementById('cwB').value,
+                    ccwA: document.getElementById('ccwA').value,
+                    ccwB: document.getElementById('ccwB').value
+                });
+
+                fetch(`http://${ESP_IP}/update?${params.toString()}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        status.innerText = "Stato: Calibrazione salvata correttamente!";
+                    })
+                    .catch(err => {
+                        status.innerText = "Errore: ESP32 non raggiungibile";
+                        console.error(err);
+                    });
+            }
+
             function sendCommand(dir) {
                 const status = document.getElementById('statusField');
                 status.innerText = "Stato: Invio comando " + dir + "...";
@@ -139,7 +205,7 @@ if (isset($_GET['logout'])) {
             document.addEventListener("DOMContentLoaded", () => {
                 
                 function getMap() {
-                    let response = fetch(`http://${ESP_IP}/map`);
+                    //let response = fetch(`http://${ESP_IP}/map`);
                     console.log(response);
                 }
 
