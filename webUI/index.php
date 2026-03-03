@@ -204,12 +204,12 @@ if (isset($_GET['logout'])) {
 
             document.addEventListener("DOMContentLoaded", () => {
                 
-                function getMap() {
-                    //let response = fetch(`http://${ESP_IP}/map`);
+                /* function getMap() {
+                    let response = fetch(`http://${ESP_IP}/map`);
                     console.log(response);
                 }
 
-                setInterval(getMap, 1000);
+                setInterval(getMap, 1000); */
             });
         </script>
 
