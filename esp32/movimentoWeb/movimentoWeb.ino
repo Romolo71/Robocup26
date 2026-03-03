@@ -21,10 +21,10 @@ const int pin4 = 17;
 // const int ch4=3;
 
 // version 3 of the motor driver
-const int ch1=pin1;
-const int ch2=pin2;
-const int ch3=pin3;
-const int ch4=pin4;
+// const int ch1=pin1;
+// const int ch2=pin2;
+// const int ch3=pin3;
+// const int ch4=pin4;
 
 const int freq=5000;
 const int resolution=8;
@@ -57,62 +57,88 @@ void setup() {
   // ledcAttachPin(pin4,ch4);
 
   // If you use version 3 of the motor driver, uncomment the following lines:
-  ledcAttach(pin1,freq,resolution);
-  ledcAttach(pin2,freq,resolution);
-  ledcAttach(pin3,freq,resolution);
-  ledcAttach(pin4,freq,resolution);
+  // ledcAttach(pin1,freq,resolution);
+  // ledcAttach(pin2,freq,resolution);
+  // ledcAttach(pin3,freq,resolution);
+  // ledcAttach(pin4,freq,resolution);
 
   // Connessione Wi-Fi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
+    //Serial.print(".");
+    switch (WiFi.status()) {
+      case WL_IDLE_STATUS:
+        Serial.println("WL_IDLE_STATUS");
+        break;
+      case WL_NO_SSID_AVAIL:
+        Serial.println("WL_NO_SSID_AVAIL");
+        break;
+      case WL_SCAN_COMPLETED:
+        Serial.println("WL_SCAN_COMPLETED");
+        break;
+      case WL_CONNECTED:
+        Serial.println("WL_CONNECTED");
+        break;
+      case WL_CONNECT_FAILED:
+        Serial.println("WL_CONNECT_FAILED");
+        break;
+      case WL_CONNECTION_LOST:
+        Serial.println("WL_CONNECTION_LOST");
+        break;
+      case WL_DISCONNECTED:
+        Serial.println("WL_DISCONNECTED");
+        break;
+    }
   }
   Serial.println("");
   Serial.println("Wi-Fi connesso");
   Serial.println("Indirizzo IP: ");
   Serial.println(WiFi.localIP());
 
-  // Definizione dei percorsi del server
-  server.on("/on", []() {
-    digitalWrite(ledPin, HIGH);
-    //server.sendHeader("Location", "/");
-    server.send(200, "application/json", "{'text':'Command Confirmed: ON'}");
-    Serial.println("HTTP LOG: ON");
-  });
-  server.on("/off", []() {
-    digitalWrite(ledPin, LOW);
-    //server.sendHeader("Location", "/");
-    server.send(200, "application/json", "{'text':'Command Confirmed: OFF'}");
-    Serial.println("HTTP LOG: OFF");
+  // Gestione globale per le richieste pre-flight CORS
+  server.onNotFound([]() {
+    if (server.method() == HTTP_OPTIONS) {
+      server.sendHeader("Access-Control-Allow-Origin", "*");
+      server.sendHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+      server.sendHeader("Access-Control-Allow-Headers", "*");
+      server.send(204);
+    } else {
+      server.send(404, "text/plain", "Not Found");
+    }
   });
 
   /* Movement */
   server.on("/move-fwd", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/json", "{'text':'Command Confirmed: Avanti', 'command':'avanti'}");
     Serial.println("HTTP LOG: avanti");
     // go avanti
     move(0);
   });
   server.on("/move-bkw", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/json", "{'text':'Command Confirmed: Indietro', 'command':'indietro'}");
     Serial.println("HTTP LOG: indietro");
     // go indietro
     move(1);
   });
   server.on("/turn-cw", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/json", "{'text':'Command Confirmed: Giro s. orario', 'command':'turn-cw'}");
     Serial.println("HTTP LOG: turn-cw");
     // turn-cw
     move(2);
   });
   server.on("/turn-ccw", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/json", "{'text':'Command Confirmed: Giro s. anti-orario', 'command':'turn-ccw'}");
     Serial.println("HTTP LOG: turn-ccw");
     // turn-cw
     move(3);
   });
   server.on("/stop", []() {
+    server.sendHeader("Access-Control-Allow-Origin", "*");
     server.send(200, "application/json", "{'text':'Command Confirmed: Stop', 'command':'stop'}");
     Serial.println("HTTP LOG: stop");
     // stop
