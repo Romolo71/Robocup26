@@ -5,6 +5,14 @@
 const char* ssid = "iPhone di Riccardo";
 const char* password = "Verstappen104";
 
+// Definizione PIN Motore A
+const int pin1 = 2; 
+const int pin2 = 4; 
+
+// Definizione PIN Motore B
+const int pin3 = 16; 
+const int pin4 = 17;
+
 const int ch1=0;
 const int ch2=1;
 const int ch3=2;
@@ -79,11 +87,13 @@ void setup() {
     server.send(200, "application/json", "{'text':'Command Confirmed: Giro s. orario', 'command':'turn-cw'}");
     Serial.println("HTTP LOG: turn-cw");
     // turn-cw
+    move(2);
   });
   server.on("/turn-ccw", []() {
     server.send(200, "application/json", "{'text':'Command Confirmed: Giro s. anti-orario', 'command':'turn-ccw'}");
     Serial.println("HTTP LOG: turn-ccw");
     // turn-cw
+    move(3);
   });
 
   server.begin();
