@@ -5,6 +5,14 @@
 const char* ssid = "iPhone di Riccardo";
 const char* password = "Verstappen104";
 
+const int ch1=0;
+const int ch2=1;
+const int ch3=2;
+const int ch4=3;
+
+const int freq=5000;
+const int resolution=8;
+
 // Web server sulla porta 80
 WebServer server(80);
 
@@ -18,6 +26,16 @@ void setup() {
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT);
   digitalWrite(ledPin, LOW);
+
+  ledcSetup(ch1,freq,resolution);
+  ledcSetup(ch2,freq,resolution);
+  ledcSetup(ch3,freq,resolution);
+  ledcSetup(ch4,freq,resolution);
+
+  ledcAttachPin(pin1,ch1);
+  ledcAttachPin(pin2,ch2);
+  ledcAttachPin(pin3,ch3);
+  ledcAttachPin(pin4,ch4);
 
   // Connessione Wi-Fi
   WiFi.begin(ssid, password);
@@ -49,11 +67,13 @@ void setup() {
     server.send(200, "application/json", "{'text':'Command Confirmed: Avanti', 'command':'avanti'}");
     Serial.println("HTTP LOG: avanti");
     // go avanti
+    move(0);
   });
   server.on("/move-bkw", []() {
     server.send(200, "application/json", "{'text':'Command Confirmed: Indietro', 'command':'indietro'}");
     Serial.println("HTTP LOG: indietro");
     // go indietro
+    move(1);
   });
   server.on("/turn-cw", []() {
     server.send(200, "application/json", "{'text':'Command Confirmed: Giro s. orario', 'command':'turn-cw'}");
@@ -72,4 +92,29 @@ void setup() {
 
 void loop() {
   server.handleClient();
+}
+
+void move(int direction) {
+  switch (direction) {
+    case 0: // avanti
+      ledcWrite(ch1, 0);
+      ledcWrite(ch2, 255);
+      ledcWrite(ch3, 0);
+      ledcWrite(ch4, 255);
+      break;
+    case 1: // indietro
+      ledcWrite(ch1, 255);
+      ledcWrite(ch2, 0);
+      ledcWrite(ch3, 255);
+      ledcWrite(ch4, 0);
+      break;
+    case 2: // destra
+      
+      break;
+    case 3: // sinistra
+      
+      break;
+    default:
+      break;
+  }
 }

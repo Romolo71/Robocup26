@@ -22,89 +22,14 @@ if (isset($_GET['logout'])) {
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Robot Control Center</title>
+        <link rel="stylesheet" href="styles/style.css">
         <style>
-            :root {
-                --bg-color: #0f172a;
-                --accent-color: #38bdf8;
-                --danger-color: #ef4444;
-                --card-bg: #1e293b;
-            }
-
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                background-color: var(--bg-color);
-                color: white;
-                margin: 0;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                min-height: 100vh;
-            }
-
-            .container {
-                background: var(--card-bg);
-                padding: 2rem;
-                border-radius: 15px;
-                box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-                width: 90%;
-                max-width: 800px;
-                text-align: center;
-            }
-
-            /* Login Style */
-            .login-box input {
-                padding: 10px;
-                border-radius: 5px;
-                border: none;
-                margin-bottom: 10px;
-            }
-
             /* Control Panel Style */
             .dashboard { display: none; }
             <?php if(isset($_SESSION['authorized'])): ?>
                 .login-box { display: none; }
                 .dashboard { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
             <?php endif; ?>
-
-            .controls {
-                display: grid;
-                grid-template-areas: 
-                    ". up ."
-                    "left stop right"
-                    ". down .";
-                gap: 10px;
-                justify-content: center;
-            }
-
-            button {
-                background: #334155;
-                color: white;
-                border: none;
-                padding: 20px;
-                border-radius: 10px;
-                cursor: pointer;
-                transition: 0.3s;
-                font-weight: bold;
-            }
-
-            button:active { background: var(--accent-color); transform: scale(0.95); }
-            .btn-up { grid-area: up; }
-            .btn-left { grid-area: left; }
-            .btn-right { grid-area: right; }
-            .btn-down { grid-area: down; }
-            .btn-stop { grid-area: stop; background: var(--danger-color); }
-
-            .map-container {
-                background: #000;
-                border: 2px solid var(--accent-color);
-                border-radius: 10px;
-                min-height: 200px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .status { margin-top: 20px; font-size: 0.9rem; color: #94a3b8; }
         </style>
     </head>
     <body>
@@ -147,17 +72,36 @@ if (isset($_GET['logout'])) {
         </div>
 
         <script>
+            const ESP_IP = "172.20.10.5"; // Sostituisci con l'IP che apparirà sulla seriale dell'ESP32
+
             function sendCommand(dir) {
                 const status = document.getElementById('statusField');
                 status.innerText = "Stato: Invio comando " + dir + "...";
-                
-                // Qui invieresti il comando al tuo robot tramite fetch o WebSocket
-                console.log("Eseguo: " + dir);
-                
-                // Simulazione feedback
-                setTimeout(() => {
-                    status.innerText = "Stato: Eseguito " + dir;
-                }, 500);
+
+                let listaComandi = [
+                    { command: "AVANTI",   api: "move-fwd" },
+                    { command: "INDIETRO", api: "move-bkw" },
+                    { command: "DESTRA",   api: "turn-cw"  },
+                    { command: "SINISTRA", api: "turn-ccw" }
+                ]
+                let requestedApiEndpoint = "";
+                listaComandi.forEach((el, i) => {
+                    if (el.command == dir) {
+                        requestedApiEndpoint = el.api;
+                    }
+                });
+
+                // Invia la richiesta HTTP all'ESP32
+                fetch(`http://${ESP_IP}/${requestedApiEndpoint}`)
+                    .then(response => {
+                        console.log(response);
+                        
+                        
+                    })
+                    .catch(err => {
+                        status.innerText = "Errore: ESP32 non raggiungibile";
+                        console.error(err);
+                    });
             }
 
             // Supporto tastiera
@@ -167,6 +111,16 @@ if (isset($_GET['logout'])) {
                 if(e.key === "ArrowLeft") sendCommand('SINISTRA');
                 if(e.key === "ArrowRight") sendCommand('DESTRA');
                 if(e.key === " ") sendCommand('STOP');
+            });
+
+            document.addEventListener("DOMContentLoaded", () => {
+                
+                function getMap() {
+                    let response = fetch(`http://${ESP_IP}/map`);
+                    console.log(response);
+                }
+
+                setInterval(getMap, 1000);
             });
         </script>
 
