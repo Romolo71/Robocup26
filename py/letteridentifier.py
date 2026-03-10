@@ -2,7 +2,15 @@
 import cv2
 import pytesseract
 
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+import os
+import platform
+
+# Configurazione Tesseract: prova il comando di sistema se su Linux, altrimenti usa il percorso Windows
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+elif os.path.exists('/usr/bin/tesseract'):
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
+# Se non presente, confida che sia nel PATH
 
 
 cap = cv2.VideoCapture(0)
@@ -25,12 +33,24 @@ while True:
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
 
 
-    config = '--psm 10 -c tessedit_char_whitelist=HSU'
+    # Aggiunte Omega (Ω), Phi (Φ), Psi (Ψ) alla whitelist
+    config = '--psm 10 -c tessedit_char_whitelist=HSUΩΦΨ'
+    # Per gestire i simboli greci potrebbe essere necessario aggiungere il linguaggio greco se installato:
+    # config = '-l eng+grc --psm 10 -c tessedit_char_whitelist=HSUΩΦΨ'
+    
     text = pytesseract.image_to_string(thresh, config=config).strip().upper()
 
-    if text in ['H', 'S', 'U']:
-        print("Lettera rilevata:", text)
-        cv2.putText(frame, f"Lettera: {text}", (50, 50),
+    # Mappatura per visualizzazione amichevole
+    greek_map = {
+        'Ω': 'Omega',
+        'Φ': 'Phi',
+        'Ψ': 'Psi'
+    }
+
+    if text in ['H', 'S', 'U'] or text in greek_map:
+        display_text = greek_map.get(text, text)
+        print("Lettera rilevata:", display_text)
+        cv2.putText(frame, f"Lettera: {display_text}", (50, 50),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
 
