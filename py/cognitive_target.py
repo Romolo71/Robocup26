@@ -6,11 +6,15 @@ from collections import deque
 
 class VideoStream:
     """Class to handle multithreaded video capture on RPi5."""
-    def __init__(self, src=0):
-        self.stream = cv2.VideoCapture(src)
-        self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        self.stream.set(cv2.CAP_PROP_FPS, 30)
+    def __init__(self, src=0, cap=None):
+        if cap is not None:
+            self.stream = cap
+        else:
+            self.stream = cv2.VideoCapture(src)
+            self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            self.stream.set(cv2.CAP_PROP_FPS, 30)
+            
         (self.grabbed, self.frame) = self.stream.read()
         self.stopped = False
 
