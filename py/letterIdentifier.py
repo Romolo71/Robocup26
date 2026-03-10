@@ -3,6 +3,8 @@ import cv2
 import pytesseract
 import os
 import platform
+import threading
+import time
 from collections import deque, Counter
 
 # Configurazione Tesseract
@@ -14,15 +16,44 @@ if platform.system() == "Windows":
 elif os.path.exists('/usr/bin/tesseract'):
     pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
+class VideoStream:
+    """Classe per gestire l'acquisizione video multithread per aumentare gli FPS."""
+    def __init__(self, src=1):
+        self.stream = cv2.VideoCapture(src)
+        # self.stream.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        # self.stream.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        (self.grabbed, self.frame) = self.stream.read()
+        self.stopped = False
 
+    def start(self):
+        threading.Thread(target=self.update, args=(), daemon=True).start()
+        return self
 
-cap = cv2.VideoCapture(1)
-size = 200
+    def update(self):
+        while not self.stopped:
+            ret, frame = self.stream.read()
+            if not ret:
+                self.stopped = True
+                continue
+            self.frame = frame
+
+    def read(self):
+        return self.frame
+
+    def stop(self):
+        self.stopped = True
+        self.stream.release()
+
+# Inizializzazione stream
+vs = VideoStream(src=1).start()
+time.sleep(1.0) # Tempo di riscaldamento camera
+
+size = 100
 velocita = 12 
-step_y = 100 
+step_y = int(size/4) 
 pause_frames = 0 
 
-# Variabili di stato inizializzate al primo frame
+# Variabili di stato
 x = None
 y = None
 direzione = 1 
@@ -30,10 +61,19 @@ direzione = 1
 # Buffer per stabilizzazione temporale
 detection_buffer = deque(maxlen=20)
 
+# Variabili per calcolo FPS e ottimizzazione loop
+fps_count = 0
+fps_start_time = time.time()
+fps_display = 0
+frame_count = 0
+OCR_SKIP_FRAMES = 3 # Esegue OCR ogni 3 frame per fluidità
+
+print("SISTEMA AVVIATO - Ottimizzazione FPS attiva")
+
 while True:
-    ret, frame = cap.read()
-    if not ret:
-        break
+    frame = vs.read()
+    if frame is None:
+        continue
         
     h, w, _ = frame.shape
     
@@ -43,7 +83,7 @@ while True:
     scan_x_min, scan_x_max = margin_w, w - margin_w - size
     scan_y_min, scan_y_max = margin_h, h - margin_h - size
     
-    # Inizializzazione posizione al primo frame nella zona corretta
+    # Inizializzazione posizione
     if x is None or y is None:
         x = scan_x_min
         y = scan_y_min
@@ -55,64 +95,70 @@ while True:
         # Aggiornamento posizione X
         x += direzione * velocita
         
-        # Controllo bordi della ZONA CENTRALE e aggiornamento Y
+        # Controllo bordi e aggiornamento Y
         if x >= scan_x_max or x <= scan_x_min:
             direzione *= -1
             y += step_y
-            
-            # Se superiamo l'altezza massima della zona centrale, ricomincia dall'alto della zona
             if y > scan_y_max:
                 y = scan_y_min
     
-    # Clipping x e y nei confini della zona centrale per sicurezza
+    # Clipping x e y
     x = max(scan_x_min, min(x, scan_x_max))
     y = max(scan_y_min, min(y, scan_y_max))
     
     roi = frame[y:y + size, x:x + size]
 
-    # Pre-processing robusto
+    # Pre-processing ottimizzato
     gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     gray = clahe.apply(gray)
-    gray_resized = cv2.resize(gray, (size*3, size*3), interpolation=cv2.INTER_CUBIC)
     
-    # Bilateral Filter
-    gray_filtered = cv2.bilateralFilter(gray_resized, 9, 75, 75)
+    # Resize ridotto a 2x invece di 3x per velocità
+    gray_resized = cv2.resize(gray, (size*2, size*2), interpolation=cv2.INTER_LINEAR)
+    
+    # Gaussian Blur (molto più veloce di Bilateral)
+    gray_filtered = cv2.GaussianBlur(gray_resized, (5, 5), 0)
     
     # Adaptive Thresholding
     thresh = cv2.adaptiveThreshold(gray_filtered, 255, 
                                    cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
                                    cv2.THRESH_BINARY_INV, 25, 10)
 
-    # Pulizia morfologica
+    # Pulizia morfologica ridotta
     kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
 
-    # Configurazione Tesseract
-    config = f'--tessdata-dir "{tessdata_dir}" -l grc --psm 8 -c tessedit_char_whitelist=ΩΦΨ'
-    
     detected_char = None
-    try:
-        data = pytesseract.image_to_data(thresh, config=config, output_type=pytesseract.Output.DICT)
-        for i, text in enumerate(data['text']):
-            conf = int(data['conf'][i])
-            if text.strip() and conf > 5: 
-                detected_char = text.strip()
+    
+    # Esegue OCR solo periodicamente o se siamo lockati su una detection
+    frame_count += 1
+    if pause_frames > 0 or frame_count % OCR_SKIP_FRAMES == 0:
+        config = f'--tessdata-dir "{tessdata_dir}" -l grc --psm 10 -c tessedit_char_whitelist=ΩΦΨ'
+        try:
+            # image_to_string è più veloce di image_to_data
+            text = pytesseract.image_to_string(thresh, config=config).strip()
+            if text:
+                detected_char = text[0]
                 pause_frames = 10 
-                break
-    except Exception as e:
-        pass
+        except Exception as e:
+            pass
 
     detection_buffer.append(detected_char)
     valid_detections = [c for c in detection_buffer if c is not None]
     
     greek_map = {'Ω': 'Omega', 'Φ': 'Phi', 'Ψ': 'Psi'}
 
-    # Disegna l'AREA DI SCANSIONE (cornice grigia)
+    # HUD ed FPS
+    fps_count += 1
+    if time.time() - fps_start_time >= 1.0:
+        fps_display = fps_count
+        fps_count = 0
+        fps_start_time = time.time()
+
+    cv2.putText(frame, f"FPS: {fps_display}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    # Disegna l'AREA DI SCANSIONE
     cv2.rectangle(frame, (scan_x_min, scan_y_min), (scan_x_max + size, scan_y_max + size), (100, 100, 100), 1)
-    cv2.putText(frame, "Area di Scansione", (scan_x_min, scan_y_min - 10), 
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (100, 100, 100), 1)
 
     # Stato scansione
     status = "SCANNING" if pause_frames == 0 else "LOCKING..."
@@ -127,17 +173,16 @@ while True:
             display_text = greek_map[most_common]
             cv2.putText(frame, f"Greca: {display_text}", (50, 80),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            print(f"Lettera stabile rilevata: {display_text} ({count} validi in buffer)")
 
     # Disegna il rettangolo di scansione
     color = (0, 255, 0) if pause_frames > 0 else (127, 0, 255)
     cv2.rectangle(frame, (x, y), (x + size, y + size), color, 2)
     
     cv2.imshow("Webcam Scanner", frame)
-    cv2.imshow("Debug Thresh (OCR Input)", thresh)
+    cv2.imshow("Debug Thresh", thresh)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-cap.release()
+vs.stop()
 cv2.destroyAllWindows()
