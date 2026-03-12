@@ -173,7 +173,7 @@ def main():
     vs = VideoStream(src=1).start()
     time.sleep(1.0) # Tempo di riscaldamento camera
     
-    detector = LetterDetector()
+    detector = LetterDetector(size=200, velocita=6)
     
     fps_count = 0
     fps_start_time = time.time()
